@@ -81,10 +81,10 @@ EOF
         run: |
           scp -o StrictHostKeyChecking=no deploy-docker-compose.yml $VPS_USER@$VPS_HOST:/home/$VPS_USER/docker-compose.yml
 
-      # 10. Despliegue en el VPS (pull y restart)
+      # 10. Despliegue en el VPS (pull y restart) - CORREGIDO
       - name: Deploy on VPS (pull and restart)
         env:
           VPS_HOST: ${{ secrets.VPS_HOST }}
           VPS_USER: ${{ secrets.VPS_USER }}
         run: |
-          ssh -o StrictHostKeyChecking=no $VPS_USER@$VPS_HOST "docker compose pull && docker compose up -d"
+          ssh -o StrictHostKeyChecking=no $VPS_USER@$VPS_HOST "cd /home/$VPS_USER && docker compose pull && docker compose up -d"
