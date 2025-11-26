@@ -79,15 +79,12 @@ EOF
           VPS_HOST: ${{ secrets.VPS_HOST }}
           VPS_USER: ${{ secrets.VPS_USER }}
         run: |
-          # El agente SSH inyecta la clave automáticamente.
-          # Ya no se necesita el manejo manual de private_key.pem ni chmod.
           scp -o StrictHostKeyChecking=no deploy-docker-compose.yml $VPS_USER@$VPS_HOST:/home/$VPS_USER/docker-compose.yml
 
-      # 10. Despliegue en el VPS (pull y restart) - CORREGIDO
+      # 10. Despliegue en el VPS (pull y restart)
       - name: Deploy on VPS (pull and restart)
         env:
           VPS_HOST: ${{ secrets.VPS_HOST }}
           VPS_USER: ${{ secrets.VPS_USER }}
         run: |
-          # ssh también usa la clave del agente automáticamente.
           ssh -o StrictHostKeyChecking=no $VPS_USER@$VPS_HOST "docker compose pull && docker compose up -d"
