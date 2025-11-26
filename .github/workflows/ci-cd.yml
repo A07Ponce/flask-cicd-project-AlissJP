@@ -52,18 +52,18 @@ jobs:
         run: |
           docker build -t $IMAGE_NAME:$IMAGE_TAG .
           docker push $IMAGE_NAME:$IMAGE_TAG
-            # 7. Preparar archivo docker-compose de despliegue (sin heredoc)
+
+      # 7. Preparar archivo docker-compose de despliegue
       - name: Prepare docker-compose for VPS
         run: |
           echo 'version: "3.9"' > deploy-docker-compose.yml
           echo 'services:' >> deploy-docker-compose.yml
           echo '  flask-app:' >> deploy-docker-compose.yml
-          echo '    image: $IMAGE_NAME:$IMAGE_TAG' >> deploy-docker-compose.yml
+          echo '    image: '"$IMAGE_NAME"':'"$IMAGE_TAG" >> deploy-docker-compose.yml
           echo '    container_name: flask_app_ponce' >> deploy-docker-compose.yml
           echo '    ports:' >> deploy-docker-compose.yml
           echo '      - "80:5000"' >> deploy-docker-compose.yml
           echo '    restart: always' >> deploy-docker-compose.yml
-      
       
       # 8. CONFIGURACIÓN DE SSH (Utiliza un agente para evitar errores de archivo)
       - name: Setup SSH Agent
