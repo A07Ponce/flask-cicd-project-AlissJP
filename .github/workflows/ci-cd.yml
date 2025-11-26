@@ -83,7 +83,7 @@ EOF
           # Ya no se necesita el manejo manual de private_key.pem ni chmod.
           scp -o StrictHostKeyChecking=no deploy-docker-compose.yml $VPS_USER@$VPS_HOST:/home/$VPS_USER/docker-compose.yml
 
-      # 10. Despliegue en el VPS (pull y restart)
+      # 10. Despliegue en el VPS (pull y restart) - CORREGIDO
       - name: Deploy on VPS (pull and restart)
         env:
           VPS_HOST: ${{ secrets.VPS_HOST }}
