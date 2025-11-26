@@ -1,5 +1,7 @@
-name: CI/CD Pipeline (ponce)
+# Nombre del flujo de trabajo
+name: CI/CD Pipeline (Ponce - Corregido)
 
+# Evento que dispara el flujo de trabajo: push a la rama 'ponce'
 on:
   push:
     branches:
@@ -7,45 +9,51 @@ on:
 
 jobs:
   build-and-deploy:
+    # Ejecutar en un corredor de Ubuntu (máquina virtual)
     runs-on: ubuntu-latest
+    
     steps:
+      # 1. Checkout del código
       - name: Checkout repo
         uses: actions/checkout@v4
-
+      
+      # 2. Configurar Python
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: "3.9"
-
-      - name: Install dependencies
+      
+      # 3. Instalar dependencias y ejecutar tests
+      - name: Install dependencies and Run tests
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
-
-      - name: Run tests
-        run: |
+          if [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+          fi
+          # Asegúrese de que los tests pasen antes de continuar
           pytest -q
-
+      
+      # 4. Establecer variables de entorno para Docker
       - name: Set image name and tag
         run: |
-          echo "IMAGE_NAME=ghcr.io/${{ github.actor }}/ponce" >> $GITHUB_ENV
-          echo "IMAGE_TAG=1.0.5" >> $GITHUB_ENV
+          echo "IMAGE_NAME=ghcr.io/${{ github.repository_owner }}/ponce-app" >> $GITHUB_ENV
+          echo "IMAGE_TAG=${{ github.sha }}" >> $GITHUB_ENV
 
-      - name: Build Docker image
-        run: |
-          docker build -t $IMAGE_NAME:$IMAGE_TAG .
-
+      # 5. Login en GHCR
       - name: Log in to GitHub Container Registry (GHCR)
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Push image to GHCR
+      # 6. Build y Push de la imagen Docker
+      - name: Build and Push Docker image
         run: |
+          docker build -t $IMAGE_NAME:$IMAGE_TAG .
           docker push $IMAGE_NAME:$IMAGE_TAG
-
+      
+      # 7. Preparar archivo docker-compose de despliegue
       - name: Prepare docker-compose for VPS
         run: |
           cat > deploy-docker-compose.yml <<EOF
@@ -58,23 +66,28 @@ services:
       - "80:5000"
     restart: always
 EOF
-
-      - name: Copy docker-compose to VPS
+      
+      # 8. CONFIGURACIÓN DE SSH (Utiliza un agente para evitar errores de archivo)
+      - name: Setup SSH Agent
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.VPS_SSH_KEY }}
+      
+      # 9. Copiar el archivo docker-compose
+      - name: Copy docker-compose to VPS via SCP
         env:
           VPS_HOST: ${{ secrets.VPS_HOST }}
           VPS_USER: ${{ secrets.VPS_USER }}
-          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
         run: |
-          echo "$VPS_SSH_KEY" > private_key.pem
-          chmod 600 private_key.pem
-          scp -i private_key.pem -o StrictHostKeyChecking=no deploy-docker-compose.yml $VPS_USER@$VPS_HOST:/home/$VPS_USER/docker-compose.yml
+          # El agente SSH inyecta la clave automáticamente.
+          # Ya no se necesita el manejo manual de private_key.pem ni chmod.
+          scp -o StrictHostKeyChecking=no deploy-docker-compose.yml $VPS_USER@$VPS_HOST:/home/$VPS_USER/docker-compose.yml
 
+      # 10. Despliegue en el VPS (pull y restart)
       - name: Deploy on VPS (pull and restart)
         env:
           VPS_HOST: ${{ secrets.VPS_HOST }}
           VPS_USER: ${{ secrets.VPS_USER }}
-          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
         run: |
-          echo "$VPS_SSH_KEY" > private_key.pem
-          chmod 600 private_key.pem
-          ssh -i private_key.pem -o StrictHostKeyChecking=no $VPS_USER@$VPS_HOST "docker compose pull && docker compose up -d"
+          # ssh también usa la clave del agente automáticamente.
+          ssh -o StrictHostKeyChecking=no $VPS_USER@$VPS_HOST "docker compose pull && docker compose up -d"
